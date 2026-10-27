@@ -1,0 +1,11 @@
+# Все текстовые файлы — с переносами LF, в том числе на Windows.
+# Иначе при core.autocrlf=true Dockerfile и скрипты получают CRLF и ломаются в Linux-контейнере.
+* text=auto eol=lf
+
+# Двоичные файлы не трогаем
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
