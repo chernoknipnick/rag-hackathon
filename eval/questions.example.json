@@ -1,0 +1,36 @@
+[
+  {
+    "question": "Какой класс точности у станка модели ТП-400?",
+    "company": "tehnoprom",
+    "expected_doc": "tehnoprom/",
+    "answerable": true
+  },
+  {
+    "question": "Сколько стоит доставка груза 500 кг из Москвы в Казань?",
+    "company": "logistics",
+    "expected_doc": "logistics/",
+    "answerable": true
+  },
+  {
+    "question": "Как вернуть полетный контроллер, если прошло 20 дней?",
+    "company": "retail",
+    "expected_doc": "retail/",
+    "answerable": true
+  },
+  {
+    "question": "Где в инструкции по автопилоту описана процедура ТО?",
+    "company": "tehnoprom",
+    "expected_doc": "tehnoprom/",
+    "answerable": true
+  },
+  {
+    "question": "Есть ли в договоре с «ТрансГруз» пункт о штрафах?",
+    "company": "logistics",
+    "expected_doc": "logistics/",
+    "answerable": true
+  },
+  {
+    "question": "Какой курс доллара на сегодня?",
+    "answerable": false
+  }
+]

@@ -1,0 +1,11 @@
+.git
+.github
+docs
+index_data
+hf_cache
+models
+.venv
+venv
+**/__pycache__
+.pytest_cache
+.env

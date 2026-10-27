@@ -1,0 +1,42 @@
+services:
+  ollama:
+    # Перед сдачей закрепите версию, на которой проверяли: OLLAMA_IMAGE=ollama/ollama:<версия>
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    # поднимает сервер и скачивает модель при первом запуске (дальше она лежит в volume)
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 3; ollama pull ${LLM_MODEL:-qwen2.5:3b-instruct}; wait"]
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:   # healthy = модель скачана; API стартует только после этого
+      test: ["CMD-SHELL", "ollama show ${LLM_MODEL:-qwen2.5:3b-instruct} >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 120
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      args:
+        PRELOAD_MODELS: "1"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b-instruct}
+      USE_RERANKER: ${USE_RERANKER:-1}
+      MIN_CONFIDENCE: ${MIN_CONFIDENCE:-0.3}
+      DOCS_DIR: /data/docs
+      INDEX_DIR: /data/index
+    volumes:
+      - ./docs:/data/docs
+      - ./index_data:/data/index   # можно положить заранее собранный индекс, тогда старт мгновенный
+      - hf_cache:/hf_cache
+    ports:
+      - "8000:8000"
+
+volumes:
+  ollama:
+  hf_cache:

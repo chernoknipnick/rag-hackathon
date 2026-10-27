@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Корпоративный RAG</title>
+<style>
+  :root { --fg:#1d1d1f; --muted:#6e6e73; --line:#d9d9de; --accent:#2f5bd3; --warn:#b25e00; --bg:#fff; --card:#f6f6f8; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#f2f2f4; --muted:#a1a1a8; --line:#3a3a40; --accent:#7ea0ff; --warn:#ffb35c; --bg:#16161a; --card:#202026; } }
+  * { box-sizing: border-box; }
+  body { font: 16px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); max-width: 760px; margin: 2rem auto; padding: 0 16px; }
+  h1 { font-size: 1.3rem; font-weight: 600; margin: 0 0 1rem; }
+  .row { display: flex; gap: 8px; }
+  input[type=text] { flex: 1; padding: .7rem .8rem; font-size: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+  button { padding: .6rem .9rem; font-size: 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #out { margin-top: 1.2rem; }
+  .card { background: var(--card); border-radius: 10px; padding: 1rem; }
+  .answer { font-size: 1.05rem; white-space: pre-wrap; }
+  .meta { color: var(--muted); font-size: .9rem; margin-top: .6rem; }
+  .warn { color: var(--warn); font-size: .9rem; margin-top: .4rem; }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; margin-top: .6rem; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  ul { padding-left: 1.1rem; margin: .5rem 0 0; }
+  details { margin-top: 2rem; color: var(--muted); }
+  details form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: .6rem; }
+</style>
+</head>
+<body>
+<h1>Корпоративный RAG</h1>
+<div class="row">
+  <input id="q" type="text" placeholder="Задайте вопрос и нажмите Enter" autofocus>
+  <button id="mic" title="Голосовой ввод (Chrome)">🎤</button>
+  <button id="go" class="primary">Спросить</button>
+</div>
+<div id="out"></div>
+
+<details>
+  <summary>Добавить документ (/update)</summary>
+  <form id="up">
+    <select name="company">
+      <option value="tehnoprom">tehnoprom</option>
+      <option value="logistics">logistics</option>
+      <option value="retail">retail</option>
+    </select>
+    <input type="file" name="file" required>
+    <button type="submit">Загрузить и проиндексировать</button>
+  </form>
+  <div id="upout" class="meta"></div>
+</details>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+async function ask() {
+  const question = $('q').value.trim();
+  if (!question) return;
+  $('out').textContent = 'Ищу…';
+  const r = await fetch('/ask?debug=true', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question }) });
+  const d = await r.json();
+  $('out').innerHTML = '';
+  if (!r.ok) { $('out').textContent = d.detail || 'Ошибка'; return; }
+  const card = el('div', 'card');
+  card.append(el('div', 'answer', d.answer));
+  const bar = el('div', 'bar'); const fill = el('i'); fill.style.width = Math.round(d.confidence * 100) + '%'; bar.append(fill); card.append(bar);
+  if (d.unsure && d.sources.length) card.append(el('div', 'warn', 'Я не уверен в этом ответе — проверьте источник.'));
+  const company = Array.isArray(d.company) ? d.company.join(', ') : d.company;
+  card.append(el('div', 'meta', `Уверенность ${d.confidence} · ${d.latency_ms} мс${d.cached ? ' (кэш)' : ''} · компания: ${company} (${d.route})`));
+  if (d.sources.length) {
+    const ul = el('ul', 'meta');
+    d.sources.forEach(s => ul.append(el('li', null, `${s.doc} — ${s.location || ('стр. ' + s.page)} · ${s.score}`)));
+    card.append(ul);
+  }
+  if (d.timings_ms) card.append(el('div', 'meta', Object.entries(d.timings_ms).map(([k, v]) => `${k.replace('_ms', '')}: ${v}`).join(' · ')));
+  $('out').append(card);
+}
+
+$('go').onclick = ask;
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') ask(); });
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SR) { $('mic').style.display = 'none'; } else {
+  $('mic').onclick = () => {
+    const rec = new SR(); rec.lang = 'ru-RU'; rec.interimResults = false;
+    rec.onresult = (e) => { $('q').value = e.results[0][0].transcript; ask(); };
+    rec.start();
+  };
+}
+
+$('up').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('upout').textContent = 'Индексирую…';
+  const r = await fetch('/update', { method: 'POST', body: new FormData(e.target) });
+  const d = await r.json();
+  $('upout').textContent = r.ok ? `Готово: ${d.doc}, ${d.chunks} чанков за ${d.seconds} с` : (d.detail || 'Ошибка');
+});
+</script>
+</body>
+</html>
